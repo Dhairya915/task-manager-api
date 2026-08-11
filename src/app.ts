@@ -1,14 +1,31 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
-import healthRoute from './routes/health.route';
 import type { HttpError } from './utils/HttpError';
 import { logger } from './lib/logger';
+import { ZodError } from 'zod';
+import healthRoute from './routes/health.route';
+import taskRoute from './routes/task.routes';
+import userRoute from './routes/user.route';
 
 const app = express();
 
 app.use(express.json());
 app.use('/api/v1', healthRoute);
+app.use('/api/v1', taskRoute);
+app.use('/api/v1', userRoute)
 
-app.use((err:HttpError , req:Request , res:Response , next:NextFunction) => {
+app.use((err:HttpError | ZodError , req:Request , res:Response , next:NextFunction) => {
+
+    if(err instanceof ZodError){
+        const errors = err.issues.map((issue) => ({
+            type: 'ValidationError',
+            msg: issue.message,
+            path: issue.path.join('.'),
+            location: 'body',
+        }))
+        logger.warn({errors});
+        return res.status(400).json({ errors });
+    }
+
     logger.error(err.message);
     const statusCode = err.statusCode || 500;
 
@@ -16,5 +33,7 @@ app.use((err:HttpError , req:Request , res:Response , next:NextFunction) => {
         errors: [{ type: err.name, msg: err.message, path: '', location: '' }],
     })
 })
+
+
 
 export default app;

@@ -1,0 +1,76 @@
+import  type { Request , Response } from "express";
+import { createTask , listTasks , getTaskById , removeTask , editTask} from "../services/task.service";
+import { HttpError } from "../utils/HttpError";
+import { createTaskSchema , updateTaskSchema } from "../validators/task.validator";
+
+export async function createTaskHandler(req: Request , res:Response){
+    const parsed = createTaskSchema.parse(req.body);
+    const userId = req.userId;
+
+  if (!userId) {
+    throw new HttpError('Not authorized', 401);
+  }
+
+    const task = await createTask(parsed.title , userId);
+    res.status(201).json(task);
+}
+
+export async function listTaskHandler(req:Request , res:Response){
+    const userId = req.userId;
+
+    if (!userId) {
+        throw new HttpError('Not authorized', 401);
+    }
+
+    const tasks = await listTasks(userId);
+    res.status(200).json(tasks);
+}
+
+export async function getTaskByIdHandler(req:Request , res:Response){
+    const {id} = req.params;
+    const userId = req.userId;
+    
+    if(!id || Array.isArray(id)){
+        throw new HttpError('Invalid task id',400);
+    }
+
+    if (!userId) {
+        throw new HttpError('Not authorized', 401);
+    }
+
+    const task = await getTaskById(id , userId);
+    res.status(200).json(task);
+}
+
+export async function updateTaskHandler(req:Request , res:Response){
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if(!id || Array.isArray(id)){
+        throw new HttpError('Invalid task id',400);
+    }
+
+    if (!userId) {
+        throw new HttpError('Not authorized', 401);
+    }
+
+    const updates = updateTaskSchema.parse(req.body);
+    const task = await editTask(id , userId ,updates);
+    res.status(200).json(task);
+}
+
+export async function deleteTaskHandler(req:Request , res:Response){
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if(!id || Array.isArray(id)){
+        throw new HttpError('Invalid task id',400);
+    }
+
+    if (!userId) {
+        throw new HttpError('Not authorized', 401);
+    }
+
+    await removeTask(id , userId);
+    res.status(204).send()
+}
