@@ -3,11 +3,12 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { HttpError } from '../utils/HttpError';
 
+//members
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 
-  if(!authHeader || !authHeader.startsWith('Bearer ')){
-    throw new HttpError('Not authorized',401);
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new HttpError('Not authorized', 401);
   }
 
   const token = authHeader.split(' ')[1];
@@ -16,12 +17,22 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     throw new HttpError('Not authorized', 401);
   }
 
-  try{
-    const decoded = jwt.verify(token , env.JWT_ACCESS_SECRET) as { userId: string };
+  try {
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
+      userId: string;
+      role: string;
+    };
     req.userId = decoded.userId;
+    req.role = decoded.role;
     next();
-  }
-  catch{
+  } catch {
     throw new HttpError('Not authorized', 401);
   }
+}
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.role !== 'admin') {
+    throw new HttpError('Forbidden', 403);
+  }
+  next();
 }
