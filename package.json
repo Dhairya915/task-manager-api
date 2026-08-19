@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "test": "npx dotenv-cli -e .env.test -- node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "npx dotenv-cli -e .env.test -- node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:ci": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "keywords": [],
   "author": "",
