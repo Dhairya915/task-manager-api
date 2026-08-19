@@ -3,6 +3,7 @@ import app from '../app';
 import { prisma } from '../lib/prisma';
 import { redis } from '../lib/redis';
 import { connectMongo } from '../lib/mongo';
+import mongoose from 'mongoose';
 
 let token: string;
 let adminToken: string;
@@ -53,6 +54,7 @@ afterAll(async () => {
   });
   await prisma.$disconnect();
   await redis.quit();
+  await mongoose.connection.close();
 });
 
 describe('Task API', () => {
