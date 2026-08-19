@@ -54,3 +54,18 @@ export async function deleteTask(id: string, userId: string): Promise<boolean> {
 export async function getAllTasksForAdmin(): Promise<Task[]> {
   return prisma.task.findMany();
 }
+
+//attach task
+export async function updateTaskAttachment(
+  id: string,
+  userId: string,
+  attachmentUrl: string
+): Promise<Task | null> {
+  const taskExists = await prisma.task.findFirst({ where: { id, userId } });
+
+  if (!taskExists) {
+    return null;
+  }
+
+  return prisma.task.update({ where: { id }, data: { attachmentUrl } });
+}

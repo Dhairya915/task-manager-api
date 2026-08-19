@@ -2,22 +2,35 @@ import request from 'supertest';
 import app from '../app';
 import { prisma } from '../lib/prisma';
 import { redis } from '../lib/redis';
+import { connectMongo } from '../lib/mongo';
 
 let token: string;
 let adminToken: string;
+let regularUserId: string;
+let adminUserId: string;
 
 beforeAll(async () => {
-  await request(app)
+  await connectMongo();
+
+  // 1. signup regular user — capture the response so you can grab its id
+  const signupRes = await request(app)
     .post('/api/v1/signup')
     .send({ email: 'jesttest@example.com', password: 'password123' });
+  regularUserId = signupRes.body.id;
+
+  // 2. store regularUserId from that signup response's body
   const res = await request(app)
     .post('/api/v1/login')
     .send({ email: 'jesttest@example.com', password: 'password123' });
   token = res.body.accessToken;
 
-  await request(app)
+  // 3. signup admin user — capture the response so you can grab its id
+  const adminSignupRes = await request(app)
     .post('/api/v1/signup')
     .send({ email: 'admintest@example.com', password: 'password123' });
+  adminUserId = adminSignupRes.body.id;
+
+  // 4. store adminUserId from that signup response's body
   await prisma.user.update({
     where: { email: 'admintest@example.com' },
     data: { role: 'admin' },
@@ -35,6 +48,9 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
+  await prisma.user.deleteMany({
+    where: { email: { in: ['jesttest@example.com', 'admintest@example.com'] } },
+  });
   await prisma.$disconnect();
   await redis.quit();
 });
@@ -200,5 +216,77 @@ describe('Task API', () => {
 
     // 3. expect the 6th response's status to be 429
     expect(res.status).toBe(429);
+  });
+
+  it('PATCH /users/:id/role blocks non-admin users', async () => {
+    // 1. send PATCH request to /api/v1/users/:id/role using the regular user's token
+    const res = await request(app)
+      .patch(`/api/v1/users/${adminUserId}/role`)
+      .send({ role: 'admin' })
+      .set('Authorization', `Bearer ${token}`);
+
+    // 2. expect status to be 403
+    expect(res.status).toBe(403);
+  });
+
+  it('PATCH /users/:id/role allows admin to promote a user', async () => {
+    // 1. send PATCH request to /api/v1/users/:id/role, targeting regularUserId, with role 'admin', using adminToken
+    const res = await request(app)
+      .patch(`/api/v1/users/${regularUserId}/role`)
+      .send({ role: 'admin' })
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    // 2. expect status to be 200
+    expect(res.status).toBe(200);
+
+    // 3. expect response body's role to be 'admin'
+    expect(res.body.role).toBe('admin');
+  });
+
+  it('PATCH /users/:id/role rejects invalid role value', async () => {
+    // 1. send PATCH request to /api/v1/users/:id/role, targeting regularUserId, with an invalid role, using adminToken
+    const res = await request(app)
+      .patch(`/api/v1/users/${regularUserId}/role`)
+      .send({ role: 'doctor' })
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    // 2. expect status to be 400
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /tasks/:id/attachment uploads a file successfully', async () => {
+    // 1. create a task first (need a real task id to attach to)
+    const task = await request(app)
+      .post('/api/v1/tasks')
+      .send({ title: 'test of attachment' })
+      .set('Authorization', `Bearer ${token}`);
+
+    // 2. send POST to /api/v1/tasks/:id/attachment, attach a file under field name 'file', with auth header
+    const res = await request(app)
+      .post(`/api/v1/tasks/${task.body.id}/attachment`)
+      .attach('file', 'src/tests/hello.txt')
+      .set('Authorization', `Bearer ${token}`);
+
+    // 3. expect status to be 200
+    expect(res.status).toBe(200);
+
+    // 4. expect response body's attachmentUrl to be defined/truthy
+    expect(res.body.attachmentUrl).toBeTruthy();
+  });
+
+  it('POST /tasks/:id/attachment fails with no file attached', async () => {
+    // 1. create a task first
+    const task = await request(app)
+      .post('/api/v1/tasks')
+      .send({ title: 'test of attachment 2' })
+      .set('Authorization', `Bearer ${token}`);
+
+    // 2. send POST to /api/v1/tasks/:id/attachment with NO file attached, just auth header
+    const res = await request(app)
+      .post(`/api/v1/tasks/${task.body.id}/attachment`)
+      .set('Authorization', `Bearer ${token}`);
+
+    // 3. expect status to be 400
+    expect(res.status).toBe(400);
   });
 });

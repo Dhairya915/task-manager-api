@@ -22,10 +22,11 @@ model User {
 }
 
 model Task {
-  id        String   @id @default(cuid())
-  title     String
-  completed Boolean  @default(false)
-  createdAt DateTime @default(now())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  id              String   @id @default(cuid())
+  title           String
+  completed       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  attachmentUrl   String?
 }

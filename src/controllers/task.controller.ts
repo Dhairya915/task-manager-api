@@ -6,6 +6,7 @@ import {
   removeTask,
   editTask,
   listAllTasksAdmin,
+  uploadAttachment,
 } from '../services/task.service';
 import { HttpError } from '../utils/HttpError';
 import { createTaskSchema, updateTaskSchema } from '../validators/task.validator';
@@ -97,4 +98,18 @@ export async function deleteTaskHandler(req: Request, res: Response) {
 export async function listAllTasksAdminHandler(req: Request, res: Response) {
   const tasks = await listAllTasksAdmin();
   res.status(200).json(tasks);
+}
+
+//upload attachment
+export async function uploadAttachmentHandler(req: Request, res: Response) {
+  if (!req.file) {
+    throw new HttpError('No file uploaded', 400);
+  }
+
+  const task = await uploadAttachment(
+    req.params.id as string,
+    req.userId as string,
+    req.file.path
+  );
+  res.status(200).json(task);
 }

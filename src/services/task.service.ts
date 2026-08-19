@@ -5,16 +5,32 @@ import {
   updateTask,
   deleteTask,
   getAllTasksForAdmin,
+  updateTaskAttachment,
 } from '../repositories/task.repository';
 import { HttpError } from '../utils/HttpError';
+import { ActivityLog } from '../models/ActivityLog.model';
 import type { Task } from '@prisma/client';
 import { redis } from '../lib/redis';
 import { z } from 'zod';
 import { updateTaskSchema } from '../validators/task.validator';
+import { connections } from '../lib/websocket';
 
+//create task
 export async function createTask(title: string, userId: string) {
   const task = await addTask({ title, userId });
   await invalidateTaskCache(userId);
+
+  await ActivityLog.create({
+    userId,
+    action: 'task.created',
+    targetId: task.id,
+    metadata: { title: task.title },
+  });
+
+  const socket = connections.get(userId);
+  if (socket) {
+    socket.send(JSON.stringify({ type: 'task.created', data: task }));
+  }
   return task;
 }
 
@@ -62,6 +78,7 @@ export async function editTask(
   return task;
 }
 
+//remove task
 export async function removeTask(id: string, userId: string): Promise<void> {
   const deleted = await deleteTask(id, userId);
 
@@ -70,6 +87,18 @@ export async function removeTask(id: string, userId: string): Promise<void> {
   }
 
   await invalidateTaskCache(userId);
+
+  await ActivityLog.create({
+    userId,
+    action: 'task.deleted',
+    targetId: id,
+    metadata: {},
+  });
+
+  const socket = connections.get(userId);
+  if (socket) {
+    socket.send(JSON.stringify({ type: 'task.deleted', data: { id } }));
+  }
 }
 
 //admin
@@ -83,4 +112,19 @@ async function invalidateTaskCache(userId: string) {
   if (keys.length > 0) {
     await redis.del(...keys);
   }
+}
+
+//upload attachment
+export async function uploadAttachment(
+  id: string,
+  userId: string,
+  filePath: string
+): Promise<Task> {
+  const task = await updateTaskAttachment(id, userId, filePath);
+
+  if (!task) {
+    throw new HttpError('Task not found', 404);
+  }
+
+  return task;
 }

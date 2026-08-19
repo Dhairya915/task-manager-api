@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { signup , login, refreshAccessToken} from '../services/user.service';
-import { signupSchema } from '../validators/user.validator';
+import { signup, login, refreshAccessToken, promoteUser } from '../services/user.service';
+import { signupSchema, updateRoleSchema } from '../validators/user.validator';
 import { loginSchema } from '../validators/user.validator';
 
 export async function signupHandler(req: Request, res: Response) {
@@ -15,8 +15,14 @@ export async function loginHandler(req: Request, res: Response) {
   res.status(200).json(tokens);
 }
 
-export async function refreshHandler(req: Request, res:Response){
+export async function refreshHandler(req: Request, res: Response) {
   const { refreshToken } = req.body;
   const accessToken = refreshAccessToken(refreshToken);
-  res.status(200).json({  accessToken });
+  res.status(200).json({ accessToken });
+}
+
+export async function promoteUserHandler(req: Request, res: Response) {
+  const parsed = updateRoleSchema.parse(req.body);
+  const user = await promoteUser(req.params.id as string, parsed.role);
+  res.status(200).json(user);
 }

@@ -1,5 +1,10 @@
 import bcrypt from 'bcrypt';
-import { createUser, findUserByEmail } from '../repositories/user.repository';
+import {
+  createUser,
+  findUserByEmail,
+  findUserById,
+  updateUserRole,
+} from '../repositories/user.repository';
 import { HttpError } from '../utils/HttpError';
 import { generateAccessToken, generateRefreshToken } from '../utils/token';
 import jwt from 'jsonwebtoken';
@@ -50,4 +55,17 @@ export function refreshAccessToken(refreshToken: string): string {
   } catch {
     throw new HttpError('Invalid refresh token', 401);
   }
+}
+
+//promote role
+export async function promoteUser(id: string, role: string) {
+  const user = await findUserById(id);
+
+  if (!user) {
+    throw new HttpError('User not found', 404);
+  }
+
+  const updated = await updateUserRole(id, role);
+
+  return { id: updated!.id, email: updated!.email, role: updated!.role };
 }

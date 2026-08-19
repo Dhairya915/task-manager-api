@@ -8,6 +8,8 @@ import {
   listAllTasksAdminHandler,
 } from '../controllers/task.controller';
 import { requireAdmin, requireAuth } from '../middlewares/auth.middleware';
+import { upload } from '../middlewares/upload.middleware';
+import { uploadAttachmentHandler } from '../controllers/task.controller';
 
 const router = Router();
 
@@ -19,5 +21,13 @@ router.delete('/tasks/:id', requireAuth, deleteTaskHandler);
 
 //admin
 router.get('/admin/tasks', requireAuth, requireAdmin, listAllTasksAdminHandler);
+
+//attachment
+router.post(
+  '/tasks/:id/attachment',
+  requireAuth,
+  upload.single('file'),
+  uploadAttachmentHandler
+);
 
 export default router;
