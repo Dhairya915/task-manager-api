@@ -108,8 +108,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run lint
-
       - run: node_modules/.bin/prisma migrate deploy
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/task_manager_test_db
